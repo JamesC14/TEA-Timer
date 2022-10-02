@@ -80,7 +80,7 @@ bool UpdateDiplay = false;
 
       //LIGNE 1
       ScreenOLED.setTextSize(1);
-      ScreenOLED.setFont(&FreeSans9pt7b);
+      ScreenOLED.setFont(&Letters9pt);
       ScreenOLED.setCursor(30,12); //Minuteur 16 / Time 40
         //Affichage durée
       if (_setting == TIME) ScreenOLED.println("Minuteur");
@@ -92,7 +92,7 @@ bool UpdateDiplay = false;
 
       //LIGNE 2
       ScreenOLED.setTextSize(1); //3
-      ScreenOLED.setFont(&FreeSans18pt7b);
+      ScreenOLED.setFont(&Numbers18pt);
         //Affichage durée
       if (_setting == TIME) {
         if (duration_min >= 10) ScreenOLED.setCursor(19,43); //64/3
@@ -131,7 +131,7 @@ bool UpdateDiplay = false;
        
       //LIGNE 1
       ScreenOLED.setTextSize(1);
-      ScreenOLED.setFont(&FreeSans9pt7b);
+      ScreenOLED.setFont(&Letters9pt);
       ScreenOLED.setCursor(32,12);
       ScreenOLED.println("Infusion");
 
@@ -140,7 +140,7 @@ bool UpdateDiplay = false;
         
       //LIGNE 2
       ScreenOLED.setTextSize(1);
-      ScreenOLED.setFont(&FreeSans18pt7b);
+      ScreenOLED.setFont(&Numbers18pt);
 
       if (Timer[3].TimeLeft_min >= 10) ScreenOLED.setCursor(19,43);
       else ScreenOLED.setCursor(31,43);
