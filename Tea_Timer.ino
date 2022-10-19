@@ -3,6 +3,8 @@
 
 Version v1.0  : Version final
 Version v1.1  : Optimisation des polices de caractères
+Version v1.2  : Modification gestion LED d'infusion
+                Changement du temps coupure automatique uniquement si l'infusion est terminé (et non pas annulé par appuie long)
 
 ------------------------------------------------------------------------------------------------------------------------------*/
 
@@ -152,7 +154,7 @@ void setup()
   pinMode(LANE_B, INPUT_PULLUP);
 
   //Interruption
-  attachInterrupt(digitalPinToInterrupt(LANE_A), fEncoder_v2, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(LANE_A), fEncoder, CHANGE);
   
   //Configuration des sorties
   pinMode(LED_INFUSE,OUTPUT);
@@ -181,7 +183,6 @@ void setup()
   //Initialisation des variables
   _step = INITIALE;
   _setting = TIME;
-  Timer[5].Duration = 5*60;                                     //5min avant coupure alimentation automatique
 
   //Démarrage de l'écran OLED
   ScreenOLED.begin(SSD1306_SWITCHCAPVCC, OLED_ADR);
@@ -225,7 +226,6 @@ void loop()
           _setting = TIME;
           _step = INITIALE;
         }
-  
       break;
 
 //STEP INITIALE : Affichage minuteur
@@ -285,7 +285,6 @@ void loop()
           _step = CONFIG;
           _setting = SET_POS_HOME;
         }
-
       break;
       
 //STEP DOWN_ARM : Descente du bras
@@ -295,7 +294,6 @@ void loop()
         
         //Passage à l'étape suivante
         _step = INFUSE; //READJUSMENT | INFUSE
-        
       break;
       
 //STEP READJUSMENT : Recalage du bras
@@ -315,8 +313,6 @@ void loop()
         
         //Appel de la tempo
         fTimerTON(3);
-          
-        digitalWrite(LED_INFUSE, blinker_1Hz);
   
         //Mélange, timeout écoulé
         if ( (Timer[3].RemainingTime_ms > (TabNbInfuse[indexNbInfuse] - 50)) && (Timer[3].RemainingTime_ms < (TabNbInfuse[indexNbInfuse] + 50)) ){
@@ -335,7 +331,9 @@ void loop()
 
         //Fin de l'infusion, temps écoulé ou appuie long sur le bouton
         if (Timer[3].Out || LPress){
-          Timer[3].Start = false;
+          //Indication que l'infusion est terminée
+          infuse_finished = Timer[3].Out;
+          
           //Passage à l'étape suivante
           _step = DOWN;
         }
@@ -343,13 +341,15 @@ void loop()
       
 //STEP DOWN : Infusion terminée
       case DOWN:
-        //Indication sur l'infusion est terminée
-        infuse_finished = true;
-        digitalWrite(LED_INFUSE, HIGH); //Led d'activité pleinement allumé
+        digitalWrite(LED_INFUSE, HIGH); //Led d'activité allumé
         tone(BUZZER, 700, 1000);        //Buzzer
 
         //Remise à 0 du nombre de mélange
         NbInfuse = 0;
+        //Arrêt timer
+        Timer[3].Start = false;
+        //Mode réglage sur durée
+        _setting = TIME;
         
         //Passage à l'étape suivante
         _step = UP_ARM;
@@ -359,12 +359,9 @@ void loop()
       case UP_ARM:
         //Positionnement du servo
         ServoPos(HOME_POSITION, SPEED, false);
-        Timer[5].Duration = 10*1; //10
 
         //Passage à l'étape suivante
         _step = INITIALE;
-        //Mode réglage sur durée
-        _setting = TIME;
       break;
 
 //STEP POWER_OFF : Coupure alimentation
@@ -387,7 +384,9 @@ void loop()
   Timer[4].Duration = 3;  //Appuie de 3sec coupe l'alimentation
   Timer[4].Start = (_step == INITIALE && digitalRead(BOUTON));
   fTimerTON(4);
-  
+
+  if (infuse_finished) Timer[5].Duration = 10*1;  //10sec avant coupure si infusion terminée
+  else Timer[5].Duration = 5*60;                  //5min avant coupure si infusion non lancée/terminée
   Timer[5].Start = (_step == INITIALE && !DClick && !LPress && digitalRead(LANE_A) && digitalRead(LANE_B));
   fTimerTON(5);
   
@@ -400,9 +399,9 @@ void loop()
 //Blinker
   blinker_1Hz = fBlinker(6, 7, 0.50, 0.50);
   blinker = fBlinker(8, 9, 0.02, 0.02);
-  
 
-//LED
+//LED d'infusion
+  if (_step == INFUSE) digitalWrite(LED_INFUSE, blinker_1Hz);
   if (infuse_finished) digitalWrite(LED_INFUSE, blinker);
 
 //MAJ bouton Click, DClick, MClick, LPress;
