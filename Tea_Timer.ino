@@ -5,6 +5,7 @@ Version v1.0  : Version final
 Version v1.1  : Optimisation des polices de caractères
 Version v1.2  : Modification gestion LED d'infusion
                 Changement du temps coupure automatique uniquement si l'infusion est terminé (et non pas annulé par appuie long)
+Version v1.3  : Ajout fonction front descendant pour dectection des fronts du codeur et raz le timer d'arrêt automatique
 
 ------------------------------------------------------------------------------------------------------------------------------*/
 
@@ -101,31 +102,34 @@ const float SPEED = 30;                                               //Unit/s
 const byte DURATION_MIN = 0, DURATION_MAX = 10;                       //Durée min/max du minuteur
 
 //Déclaration des variables
-sTimer Timer[10];                         //Tableau de timers
-float duration;                           //Durée d'infusion sélectionnée
-int duration_s, duration_min;             //Durée en mm:ss pour affichage
-int PositionSaved;                        //Sauvegarde positions du servo
+sTimer Timer[10];                             //Tableau de timers
+float duration;                               //Durée d'infusion sélectionnée
+int duration_s, duration_min;                 //Durée en mm:ss pour affichage
+int PositionSaved;                            //Sauvegarde positions du servo
 
-unsigned long TabNbInfuse[5];             //Tableau découpant l'infusion en x temps égale pour mélange
-int NbInfuse = 0;                         //Nombre de remonté du sachet pendant infusion
-byte indexNbInfuse = NbInfuse;            //Index nombre de mélange pour calcul temps
-bool mix_infuse;                          //Bit pour lancer le mélange
-bool infuse_finished;                     //Bit infusion terminée
+unsigned long TabNbInfuse[5];                 //Tableau découpant l'infusion en x temps égale pour mélange
+int NbInfuse = 0;                             //Nombre de remonté du sachet pendant infusion
+byte indexNbInfuse = NbInfuse;                //Index nombre de mélange pour calcul temps
+bool mix_infuse;                              //Bit pour lancer le mélange
+bool infuse_finished;                         //Bit infusion terminée
 
-bool blinker_1Hz;                         //Blinker 1hz
-bool blinker;                             //Blinker
+bool blinker_1Hz;                             //Blinker 1hz
+bool blinker;                                 //Blinker
 
-bool Click, DClick, MClick, LPress;       //Bouton
+bool Click, DClick, MClick, LPress;           //Bouton
 
-byte counter = 6;                         //Compteur encoder, valeur par défaut 6 pour 6/2 = 3mins  
+byte counter = 6;                             //Compteur encoder, valeur par défaut 6 pour 6/2 = 3mins  
 
-bool power_off = false;                   //Extinction automatique
+bool power_off = false;                       //Extinction automatique
 
-bool rot_pos, rot_neg;                    //Retour rotation codeur
+bool rot_pos, rot_neg;                        //Retour rotation codeur
+
+bool FallingEdge_LANE_A, FallingEdge_LANE_B;  //Front descendant des voies A et B du codeur
 
 //Variables "temporaire" pour réglage position
 int pos_work, pos_home;
 bool select_posWork;
+
 
 //Logo de démarrage
 const unsigned char TeaBITMAP [] PROGMEM = {
@@ -199,6 +203,9 @@ void setup()
 
 void loop()
 {
+//Détection front
+  FallingEdge_LANE_A = fFallingEdge(LANE_A);
+  FallingEdge_LANE_B = fFallingEdge(LANE_B);
 
 //ETAPE
   switch (_step){
@@ -387,7 +394,7 @@ void loop()
 
   if (infuse_finished) Timer[5].Duration = 10*1;  //10sec avant coupure si infusion terminée
   else Timer[5].Duration = 5*60;                  //5min avant coupure si infusion non lancée/terminée
-  Timer[5].Start = (_step == INITIALE && !DClick && !LPress && digitalRead(LANE_A) && digitalRead(LANE_B));
+  Timer[5].Start = (_step == INITIALE && !DClick && !LPress && !FallingEdge_LANE_A && !FallingEdge_LANE_B);
   fTimerTON(5);
   
   //Passage à l'étape coupure alimentation si appuie long sur le bouton extinction automatique ou temps écoulé coupure automatique
@@ -407,5 +414,8 @@ void loop()
 //MAJ bouton Click, DClick, MClick, LPress;
   Click = DClick = MClick = LPress = false;
   btn.tick();
+
+//MAJ Fronts montant/descandant
+  FallingEdge_LANE_A = FallingEdge_LANE_B = false;
 
 }
