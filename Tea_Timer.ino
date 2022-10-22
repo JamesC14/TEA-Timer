@@ -6,6 +6,7 @@ Version v1.1  : Optimisation des polices de caractères
 Version v1.2  : Modification gestion LED d'infusion
                 Changement du temps coupure automatique uniquement si l'infusion est terminé (et non pas annulé par appuie long)
 Version v1.3  : Ajout fonction front descendant pour dectection des fronts du codeur et raz le timer d'arrêt automatique
+Version v1.4  : Modification fonction encoder pour eviter les mauvais comptage/décomptage en fonction du sens de rotation
 
 ------------------------------------------------------------------------------------------------------------------------------*/
 
@@ -61,8 +62,8 @@ class cBattery{
 //Bibliothèques
 #include <Servo.h>                //Pilotage du servmoteur
 #include <Adafruit_SSD1306.h>     //Gestion écran OLED
-#include <Fonts/Letters9pt.h>  //Police pour l'écran OLED FreeSans9pt7b
-#include <Fonts/Numbers18pt.h> //Police pour l'écran OLED FreeSans18pt7b
+#include <Fonts/Letters9pt.h>     //Police pour l'écran OLED FreeSans9pt7b
+#include <Fonts/Numbers18pt.h>    //Police pour l'écran OLED FreeSans18pt7b
 #include <OneButton.h>            //Gestion bouton
 
 //DEFINE
@@ -93,11 +94,11 @@ struct sTimer{
 };
 
 //Enumération des étapes
-enum :byte {SETUP, INITIALE, DOWN_ARM, READJUSMENT, INFUSE, UP_ARM, DOWN, MIXING, POWER_OFF, CONFIG} _step;
+enum :byte {STARTING, INITIALE, DOWN_ARM, READJUSMENT, INFUSE, UP_ARM, DONE, MIXING, POWER_OFF, SETTING} _step;
 enum :byte {TIME, MIX, SET_POS_HOME, SET_POS_WORK} _setting;
 
 //Déclaration des constantes
-int HOME_POSITION = 90, WORK_POSITION = 35, OFFSET = 10;              //Position du servomoteur 1477 = 90° / 546 = 0°
+byte HOME_POSITION = 90, WORK_POSITION = 35, OFFSET = 10;             //Position du servomoteur 1477 = 90° / 546 = 0°
 const float SPEED = 30;                                               //Unit/s
 const byte DURATION_MIN = 0, DURATION_MAX = 10;                       //Durée min/max du minuteur
 
@@ -105,16 +106,15 @@ const byte DURATION_MIN = 0, DURATION_MAX = 10;                       //Durée m
 sTimer Timer[10];                             //Tableau de timers
 float duration;                               //Durée d'infusion sélectionnée
 int duration_s, duration_min;                 //Durée en mm:ss pour affichage
-int PositionSaved;                            //Sauvegarde positions du servo
+byte PositionSaved;                           //Sauvegarde positions du servo
 
 unsigned long TabNbInfuse[5];                 //Tableau découpant l'infusion en x temps égale pour mélange
-int NbInfuse = 0;                             //Nombre de remonté du sachet pendant infusion
+byte NbInfuse = 0;                            //Nombre de remonté du sachet pendant infusion
 byte indexNbInfuse = NbInfuse;                //Index nombre de mélange pour calcul temps
 bool mix_infuse;                              //Bit pour lancer le mélange
 bool infuse_finished;                         //Bit infusion terminée
 
-bool blinker_1Hz;                             //Blinker 1hz
-bool blinker;                                 //Blinker
+bool blinker_1Hz, blinker;                    //Blinkers
 
 bool Click, DClick, MClick, LPress;           //Bouton
 
@@ -125,10 +125,6 @@ bool power_off = false;                       //Extinction automatique
 bool rot_pos, rot_neg;                        //Retour rotation codeur
 
 bool FallingEdge_LANE_A, FallingEdge_LANE_B;  //Front descendant des voies A et B du codeur
-
-//Variables "temporaire" pour réglage position
-int pos_work, pos_home;
-bool select_posWork;
 
 
 //Logo de démarrage
@@ -192,7 +188,7 @@ void setup()
   ScreenOLED.begin(SSD1306_SWITCHCAPVCC, OLED_ADR);
 
   //Gestion écran
-  fDisplayManagement(SETUP);
+  fDisplayManagement(STARTING);
 
   delay(1000);
   tone(BUZZER, 700, 300);
@@ -209,16 +205,16 @@ void loop()
 
 //ETAPE
   switch (_step){
-//STEP CONFIG : Réglage
-      case CONFIG:
+//STEP SETTING : Réglage
+      case SETTING:
         
         //Lecture valeurs de réglage
-        pos_home = map(analogRead(SET_HOME), 0, 1023, 0, 180);
-        pos_work = map(analogRead(SET_WORK), 0, 1023, 0, 180);
+        HOME_POSITION = map(analogRead(SET_HOME), 0, 1023, 0, 180);
+        WORK_POSITION = map(analogRead(SET_WORK), 0, 1023, 0, 180);
 
         //Positionnement du servomoteur
-        if (_setting == SET_POS_WORK) ServoPos(pos_work, SPEED, false);
-        if (_setting == SET_POS_HOME) ServoPos(pos_home, SPEED, false);
+        if (_setting == SET_POS_WORK) ServoPos(WORK_POSITION, SPEED, false);
+        if (_setting == SET_POS_HOME) ServoPos(HOME_POSITION, SPEED, false);
 
         //Changement réglage
         if (rot_pos || rot_neg){
@@ -229,7 +225,7 @@ void loop()
         
         //Exit mode réglage
         if (LPress){
-          ServoPos(pos_home, SPEED, false);
+          ServoPos(HOME_POSITION, SPEED, false);
           _setting = TIME;
           _step = INITIALE;
         }
@@ -271,7 +267,7 @@ void loop()
         //Calcul des temps intermédiaire pour remonter le sachet pendant l'infusion
         if (NbInfuse > 0) {
           indexNbInfuse = NbInfuse;
-          for (int i = 1; i <= NbInfuse; i++) {
+          for (byte i = 1; i <= NbInfuse; i++) {
             TabNbInfuse[i] = ((duration*60*1000)/(NbInfuse+1)) * i;
           }
         }
@@ -282,14 +278,14 @@ void loop()
           _step = DOWN_ARM;
         }
 
-        //Mode réglage
+        //Mode réglage infusion
         if (Click && _setting == TIME) {
           _setting = MIX;
         }
 
         //Mode configuration
         if (MClick) {
-          _step = CONFIG;
+          _step = SETTING;
           _setting = SET_POS_HOME;
         }
       break;
@@ -342,21 +338,21 @@ void loop()
           infuse_finished = Timer[3].Out;
           
           //Passage à l'étape suivante
-          _step = DOWN;
+          _step = DONE;
         }
       break;
       
-//STEP DOWN : Infusion terminée
-      case DOWN:
+//STEP DONE : Infusion terminée
+      case DONE:
+        //Indication infusion terminée
         digitalWrite(LED_INFUSE, HIGH); //Led d'activité allumé
         tone(BUZZER, 700, 1000);        //Buzzer
 
-        //Remise à 0 du nombre de mélange
-        NbInfuse = 0;
+        //Mode réglage sur durée et reset nombre d'infusion
+        _setting = TIME; NbInfuse = 0;
+
         //Arrêt timer
         Timer[3].Start = false;
-        //Mode réglage sur durée
-        _setting = TIME;
         
         //Passage à l'étape suivante
         _step = UP_ARM;
@@ -417,5 +413,6 @@ void loop()
 
 //MAJ Fronts montant/descandant
   FallingEdge_LANE_A = FallingEdge_LANE_B = false;
+  
 
 }

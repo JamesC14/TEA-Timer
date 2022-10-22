@@ -29,7 +29,7 @@ bool UpdateDiplay = false;
       
   switch (_StepToDisplay){
     
-    case SETUP:
+    case STARTING:
       
       //LIGNE 1
       ScreenOLED.setTextSize(2);
@@ -42,7 +42,7 @@ bool UpdateDiplay = false;
       UpdateDiplay = true;
     break;
 
-    case CONFIG:
+    case SETTING:
 
       //LIGNE 1
       ScreenOLED.setTextSize(2);
@@ -55,13 +55,13 @@ bool UpdateDiplay = false;
       if (_setting == SET_POS_HOME) ScreenOLED.print(">");
       else ScreenOLED.print(" ");
       ScreenOLED.print("HOME: ");
-      ScreenOLED.println(pos_home);
+      ScreenOLED.println(HOME_POSITION);
 
         //Affichage réglage position work
       if (_setting == SET_POS_WORK) ScreenOLED.print(">");
       else ScreenOLED.print(" ");
       ScreenOLED.print("WORK: ");
-      ScreenOLED.println(pos_work);
+      ScreenOLED.println(WORK_POSITION);
 
       ScreenOLED.setTextSize(1);
       ScreenOLED.setCursor(0,54);
@@ -118,7 +118,7 @@ bool UpdateDiplay = false;
       
       //Mélange
       if (NbInfuse > 0) {
-        for (int i = 1; i <= NbInfuse; i++) {
+        for (byte i = 1; i <= NbInfuse; i++) {
           //Appel de la fonction pour dessiner la position des mélanges
           fDrawMix(i, BAR_SIZE, cBLACK);
         }
@@ -165,7 +165,7 @@ bool UpdateDiplay = false;
       ScreenOLED.fillRect(2, ScreenOLED.height()-BAR_SIZE + 2, BarGraph, BAR_SIZE - 4, cWHITE);
 
       //Mélange
-      for (int i = 1; i <= NbInfuse; i++) {
+      for (byte i = 1; i <= NbInfuse; i++) {
         //Appel de la fonction pour dessiner la position des mélanges
         fDrawMix(i, BAR_SIZE, cBLACK);
       }
@@ -173,7 +173,7 @@ bool UpdateDiplay = false;
       UpdateDiplay = true;
     break;
     
-    case DOWN:
+    case DONE:
 
       //LIGNE 1
       ScreenOLED.setTextSize(2);
@@ -212,7 +212,7 @@ bool UpdateDiplay = false;
 
 }
 
-void fDrawMix(int _i, int _BarSize, int _color){
+void fDrawMix(byte _i, byte _BarSize, byte _color){
 
   //Calcul du positionement du 1er triangle
     //Coordonné sommet haut
@@ -237,7 +237,7 @@ void fDrawMix(int _i, int _BarSize, int _color){
   ScreenOLED.fillTriangle(x1, y1, x2, y2, x3, y3, _color);
 }
 
-void fDrawBattery(int _color){
+void fDrawBattery(byte _color){
 
   //Déclaration des variables
   byte Bat_Width = 20, Bat_Height = 10, EndBat_Width = 1, EndBat_Height = 4;
