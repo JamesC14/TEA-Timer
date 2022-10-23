@@ -1,9 +1,7 @@
 /*-------------------------------
   ** fDisplayManagement **
-
 v0.1 : Version d'origine
 v0.2 : Version avec fonction pour affichage batterie et triangle indiquant les mélanges
-
 -------------------------------*/
 
 void fDisplayManagement(int _StepToDisplay){
@@ -173,12 +171,27 @@ bool UpdateDiplay = false;
       UpdateDiplay = true;
     break;
     
+    case DOWN_ARM:
+
+      //LIGNE 1
+      ScreenOLED.setTextSize(2);
+      ScreenOLED.setCursor(28,13);
+      ScreenOLED.println("DEPART");
+      ScreenOLED.setCursor(16,30);
+      ScreenOLED.println("INFUSION");
+      
+
+      UpdateDiplay = true;
+    break;    
+    
     case DONE:
 
       //LIGNE 1
       ScreenOLED.setTextSize(2);
-      ScreenOLED.setCursor(22,64/3);
-      ScreenOLED.println("TERMINE");
+      ScreenOLED.setCursor(16,13);
+      ScreenOLED.println("INFUSION");
+      ScreenOLED.setCursor(16,30);
+      ScreenOLED.println("TERMINEE");
 
       UpdateDiplay = true;
     break;

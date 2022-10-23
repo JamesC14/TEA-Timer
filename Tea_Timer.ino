@@ -98,9 +98,10 @@ enum :byte {STARTING, INITIALE, DOWN_ARM, READJUSMENT, INFUSE, UP_ARM, DONE, MIX
 enum :byte {TIME, MIX, SET_POS_HOME, SET_POS_WORK} _setting;
 
 //Déclaration des constantes
-byte HOME_POSITION = 90, WORK_POSITION = 35, OFFSET = 10;             //Position du servomoteur 1477 = 90° / 546 = 0°
-const float SPEED = 30;                                               //Unit/s
+byte HOME_POSITION = 90, WORK_POSITION = 35, MIX_POSITION = 35;       //Position du servomoteur 1477 = 90° / 546 = 0°
+const float SPEED = 30, SPEED_MIX = 60;                               //Unit/s
 const byte DURATION_MIN = 0, DURATION_MAX = 10;                       //Durée min/max du minuteur
+const byte NB_MVT_MIX = 2;                                            //Nombre de mouvement
 
 //Déclaration des variables
 sTimer Timer[10];                             //Tableau de timers
@@ -122,10 +123,9 @@ byte counter = 6;                             //Compteur encoder, valeur par dé
 
 bool power_off = false;                       //Extinction automatique
 
-bool rot_pos, rot_neg;                        //Retour rotation codeur
+bool cw, ccw;                                 //Retour rotation codeur
 
 bool FallingEdge_LANE_A, FallingEdge_LANE_B;  //Front descendant des voies A et B du codeur
-
 
 //Logo de démarrage
 const unsigned char TeaBITMAP [] PROGMEM = {
@@ -195,7 +195,7 @@ void setup()
   delay(500);
   Arm.detach();
   
-}
+}//END_SETUP
 
 void loop()
 {
@@ -217,10 +217,10 @@ void loop()
         if (_setting == SET_POS_HOME) ServoPos(HOME_POSITION, SPEED, false);
 
         //Changement réglage
-        if (rot_pos || rot_neg){
+        if (cw || ccw){
           if (_setting == SET_POS_HOME) _setting = SET_POS_WORK;
           else if (_setting == SET_POS_WORK) _setting = SET_POS_HOME;
-          rot_pos = rot_neg = false;
+          cw = ccw = false;
         }
         
         //Exit mode réglage
@@ -235,17 +235,17 @@ void loop()
       case INITIALE:
 
           //Réglage si incrémentation codeur
-          if (rot_pos) {
+          if (cw) {
             if (_setting == TIME) counter++;
             if (_setting == MIX) NbInfuse++;
-            rot_pos = false;
+            cw = false;
           }
 
           //Réglage si décrémentation codeur
-          if (rot_neg) {
+          if (ccw) {
             if (_setting == TIME) counter--;
             if (_setting == MIX) NbInfuse--;
-            rot_neg = false;
+            ccw = false;
           }
  
         //Limites codeur (250 si décrémentation depuis 0 on arrive à 255 valeur d'un byte)
@@ -292,18 +292,20 @@ void loop()
       
 //STEP DOWN_ARM : Descente du bras
       case DOWN_ARM:
+        //Affichage OLED
+        fDisplayManagement(DOWN_ARM);
         //Positionnement du servo
         ServoPos(WORK_POSITION, SPEED, true);
         
         //Passage à l'étape suivante
-        _step = INFUSE; //READJUSMENT | INFUSE
+        _step = READJUSMENT; //READJUSMENT | INFUSE
       break;
       
 //STEP READJUSMENT : Recalage du bras
       case READJUSMENT:
-        //Positionnement du servo
-        ServoPos(Arm.read() + OFFSET, SPEED, false);
-    
+        //Mélange
+        Mix(NB_MVT_MIX, MIX_POSITION, SPEED_MIX, SPEED);
+            
         //Passage à l'étape suivante
         _step = INFUSE;
       break;
@@ -325,11 +327,9 @@ void loop()
   
         //Mélange, ou mélange forcé avec le bouton
         if (mix_infuse || DClick){
-          mix_infuse = false;                     //Reset la demande de mélange
-          fDisplayManagement(MIXING);             //Affichage OLED
-          PositionSaved = Arm.read();             //Sauvegarde de la position
-          ServoPos(HOME_POSITION, SPEED, false);  //Remontée du sachet
-          ServoPos(PositionSaved, SPEED, false);  //Redescente du sachet
+          mix_infuse = false;                               //Reset la demande de mélange
+          fDisplayManagement(MIXING);                       //Affichage OLED
+          Mix(NB_MVT_MIX, MIX_POSITION, SPEED_MIX, SPEED);  //Mélange
         }
 
         //Fin de l'infusion, temps écoulé ou appuie long sur le bouton
@@ -344,6 +344,11 @@ void loop()
       
 //STEP DONE : Infusion terminée
       case DONE:
+        //Mélange fin d'infusion
+        if (infuse_finished){
+          Mix(NB_MVT_MIX, MIX_POSITION, SPEED_MIX, SPEED);
+        }
+        
         //Indication infusion terminée
         digitalWrite(LED_INFUSE, HIGH); //Led d'activité allumé
         tone(BUZZER, 700, 1000);        //Buzzer
@@ -413,6 +418,5 @@ void loop()
 
 //MAJ Fronts montant/descandant
   FallingEdge_LANE_A = FallingEdge_LANE_B = false;
-  
 
-}
+} //END_LOOP

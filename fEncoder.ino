@@ -26,9 +26,9 @@ void fEncoder(){
     
     else if (tCW || tCCW) {
       //Incrémentation compteur si rotation horaire
-      if (tCW) rot_pos = true;
+      if (tCW) cw = true;
       //Décrémentation compteur si rotation anti-horaire
-      else if (tCCW) rot_neg = true;
+      else if (tCCW) ccw = true;
       //Reset sauvegarde sens rotation
       tCW = tCCW = false;
     }
