@@ -12,7 +12,7 @@ const byte cBLACK = 0, cWHITE = 1, cINVERSE = 2;      //Couleur noir, blanc ou i
 
 //Déclaration des variables
 unsigned long BarGraph;
-bool UpdateDiplay = false;
+bool UpdateDisplay = false;
 
 //NOTES
 // Size text 1 : 6px / caractère
@@ -24,7 +24,8 @@ bool UpdateDiplay = false;
   ScreenOLED.clearDisplay();
   ScreenOLED.setTextColor(cWHITE);
   ScreenOLED.setFont();
-      
+
+if (!UpdateDisplay) {      
   switch (_StepToDisplay){
     
     case STARTING:
@@ -37,7 +38,7 @@ bool UpdateDiplay = false;
       //Affichage du logo de démarrage
       ScreenOLED.drawBitmap(43,20,TeaBITMAP,42,42,cWHITE);
       
-      UpdateDiplay = true;
+      UpdateDisplay = true;
     break;
 
     case SETTING:
@@ -70,7 +71,7 @@ bool UpdateDiplay = false;
       ScreenOLED.print(Battery.Voltage());
       ScreenOLED.print("V");
 
-      UpdateDiplay = true;
+      UpdateDisplay = true;
     break;
      
     
@@ -122,7 +123,7 @@ bool UpdateDiplay = false;
         }
       }
 
-      UpdateDiplay = true;
+      UpdateDisplay = true;
     break;
     
     case INFUSE:
@@ -168,7 +169,7 @@ bool UpdateDiplay = false;
         fDrawMix(i, BAR_SIZE, cBLACK);
       }
 
-      UpdateDiplay = true;
+      UpdateDisplay = true;
     break;
     
     case DOWN_ARM:
@@ -181,7 +182,7 @@ bool UpdateDiplay = false;
       ScreenOLED.println("INFUSION");
       
 
-      UpdateDiplay = true;
+      UpdateDisplay = true;
     break;    
     
     case DONE:
@@ -193,7 +194,7 @@ bool UpdateDiplay = false;
       ScreenOLED.setCursor(16,30);
       ScreenOLED.println("TERMINEE");
 
-      UpdateDiplay = true;
+      UpdateDisplay = true;
     break;
 
     case MIXING:
@@ -203,7 +204,7 @@ bool UpdateDiplay = false;
       ScreenOLED.setCursor(22,64/3);
       ScreenOLED.println("MELANGE");
 
-      UpdateDiplay = true;
+      UpdateDisplay = true;
     break;
 
     case POWER_OFF:
@@ -213,14 +214,16 @@ bool UpdateDiplay = false;
       ScreenOLED.setCursor(10,64/3);
       ScreenOLED.println("POWER OFF");
 
-      UpdateDiplay = true; 
+      UpdateDisplay = true; 
 
     break;
   }
-
+}
   //Affichage
- if (UpdateDiplay){
+ if (UpdateDisplay){
   ScreenOLED.display();
+  delay(5);
+  UpdateDisplay = false;
  }
 
 }

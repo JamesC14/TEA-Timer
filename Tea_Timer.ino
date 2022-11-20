@@ -186,6 +186,9 @@ void setup()
 
   //Démarrage de l'écran OLED
   ScreenOLED.begin(SSD1306_SWITCHCAPVCC, OLED_ADR);
+  
+  //Modification de la luminosité de l'écran
+  ScreenOLED.dim(true);
 
   //Gestion écran
   fDisplayManagement(STARTING);
