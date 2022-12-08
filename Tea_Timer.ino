@@ -7,6 +7,7 @@ Version v1.2  : Modification gestion LED d'infusion
                 Changement du temps coupure automatique uniquement si l'infusion est terminé (et non pas annulé par appuie long)
 Version v1.3  : Ajout fonction front descendant pour dectection des fronts du codeur et raz le timer d'arrêt automatique
 Version v1.4  : Modification fonction encoder pour eviter les mauvais comptage/décomptage en fonction du sens de rotation
+Version v1.5  : Ajout d'un antirebond matérielle pour l'encodeur, modification de la fonction d'interuption
 
 ------------------------------------------------------------------------------------------------------------------------------*/
 
@@ -100,8 +101,9 @@ enum :byte {TIME, MIX, SET_POS_HOME, SET_POS_WORK} _setting;
 //Déclaration des constantes
 byte HOME_POSITION = 90, WORK_POSITION = 35, MIX_POSITION = 35;       //Position du servomoteur 1477 = 90° / 546 = 0°
 const float SPEED = 30, SPEED_MIX = 60;                               //Unit/s
-const byte DURATION_MIN = 0, DURATION_MAX = 10;                       //Durée min/max du minuteur
+const byte DURATION_MIN = 0, DURATION_MAX = 10, NB_MIX_MAX = 4;       //Durée min/max du minuteur et nombre d'infusion
 const byte NB_MVT_MIX = 2;                                            //Nombre de mouvement
+                   
 
 //Déclaration des variables
 sTimer Timer[10];                             //Tableau de timers
@@ -109,9 +111,8 @@ float duration;                               //Durée d'infusion sélectionnée
 int duration_s, duration_min;                 //Durée en mm:ss pour affichage
 byte PositionSaved;                           //Sauvegarde positions du servo
 
-unsigned long TabNbInfuse[5];                 //Tableau découpant l'infusion en x temps égale pour mélange
-byte NbInfuse = 0;                            //Nombre de remonté du sachet pendant infusion
-byte indexNbInfuse = NbInfuse;                //Index nombre de mélange pour calcul temps
+unsigned long TabNbInfuse[NB_MIX_MAX + 1];    //Tableau découpant l'infusion en x temps égale pour mélange
+byte NbInfuse, indexNbInfuse;                 //Nombre de remonté du sachet pendant infusion, index nombre de mélange pour calcul temps
 bool mix_infuse;                              //Bit pour lancer le mélange
 bool infuse_finished;                         //Bit infusion terminée
 
@@ -154,7 +155,7 @@ void setup()
   pinMode(LANE_B, INPUT_PULLUP);
 
   //Interruption
-  attachInterrupt(digitalPinToInterrupt(LANE_A), fEncoder, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(LANE_A), fEncoderMC14490, FALLING);
   
   //Configuration des sorties
   pinMode(LED_INFUSE,OUTPUT);
@@ -240,24 +241,24 @@ void loop()
           //Réglage si incrémentation codeur
           if (cw) {
             if (_setting == TIME) counter++;
-            if (_setting == MIX) NbInfuse++;
+            else if (_setting == MIX) NbInfuse++;
             cw = false;
           }
 
           //Réglage si décrémentation codeur
           if (ccw) {
             if (_setting == TIME) counter--;
-            if (_setting == MIX) NbInfuse--;
+            else if (_setting == MIX) NbInfuse--;
             ccw = false;
           }
  
         //Limites codeur (250 si décrémentation depuis 0 on arrive à 255 valeur d'un byte)
         if (counter > 250) counter = DURATION_MAX*2;
-        if (counter > DURATION_MAX*2) counter = DURATION_MIN;
+        else if (counter > DURATION_MAX*2) counter = DURATION_MIN;
 
-        //Limites NbInfuse
-        if (NbInfuse > 4) NbInfuse = 0;
-        if (NbInfuse < 0) NbInfuse = 4;
+        //Limites NbInfuse (250 si décrémentation depuis 0 on arrive à 255 valeur d'un byte)
+        if (NbInfuse > 250) NbInfuse = NB_MIX_MAX;
+        else if (NbInfuse > NB_MIX_MAX) NbInfuse = 0;
 
         //Conversion du compteur en durée
         duration = float(counter) / 2;

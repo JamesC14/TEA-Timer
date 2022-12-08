@@ -4,6 +4,7 @@
 v0.1 : Version d'origine
 v0.2 : Enregistrement états voies A et B au début de l'interruption et contrôle sens de rotation
        uniquement si la voie A est à 0.
+v0.3 : Version avec antirebond MC14490 --> fEncoderMC14490
 
 -------------------------------*/
 
@@ -36,4 +37,11 @@ void fEncoder(){
     //Sauvegarde du temps de la première interruption
     last_time = currentMillis;
   }
+}
+
+void fEncoderMC14490(){
+
+  if (digitalRead(LANE_B)) ccw = true;
+  else cw = true;
+  
 }
